@@ -1,6 +1,8 @@
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 
+import '../../ui/theme.dart';
+
 /// Maps mobile_scanner's `BarcodeFormat.name` to a barcode_widget symbology.
 /// Returns null for formats we cannot redraw (those fall back to plain text).
 Barcode? barcodeFor(String? format) {
@@ -56,13 +58,36 @@ class CodeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final barcode = barcodeFor(format);
-    final isSquare = format == 'qrCode' || format == 'aztec' || format == 'dataMatrix';
-    final text = SelectableText(
-      value,
-      textAlign: TextAlign.center,
-      style: textStyle ?? Theme.of(context).textTheme.titleMedium,
+    final style = textStyle ?? Theme.of(context).textTheme.titleMedium;
+    // One line, scaled down if needed: a code split across lines is unreadable.
+    final text = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(value, textAlign: TextAlign.center, style: style),
     );
+
+    // Plain-text code (promo code): nothing to draw.
     if (barcode == null) return text;
+
+    // A scanned code can still be impossible to redraw (wrong length or check
+    // digit for its symbology). Say so briefly instead of showing an empty box.
+    if (!barcode.isValid(value)) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          text,
+          const SizedBox(height: 8),
+          Text(
+            'Non riesco a ridisegnare il codice a barre: leggi il numero alla cassa.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: style?.color),
+          ),
+        ],
+      );
+    }
+
+    final isSquare =
+        format == 'qrCode' || format == 'aztec' || format == 'dataMatrix';
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -72,10 +97,8 @@ class CodeView extends StatelessWidget {
           height: isSquare ? height * 1.6 : height,
           width: isSquare ? height * 1.6 : double.infinity,
           drawText: false,
-          color: Colors.black,
-          backgroundColor: Colors.white,
-          errorBuilder: (context, error) =>
-              const Text('Impossibile disegnare il codice: usa il numero qui sotto.'),
+          color: codeInk,
+          backgroundColor: codeSurface,
         ),
         const SizedBox(height: 8),
         text,

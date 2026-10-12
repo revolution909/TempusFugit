@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../llm/llm_extractor.dart';
 import '../../llm/llm_settings.dart';
 import '../../providers.dart';
+import '../../ui/tokens.dart';
+import '../../ui/widgets/section_header.dart';
 
 /// Turns the on-device AI reading on or off and manages its model.
 class SettingsPage extends ConsumerStatefulWidget {
@@ -55,45 +57,80 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Impostazioni')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: Gap.xxl),
         children: [
-          Text(
-            'Lettura intelligente',
-            style: Theme.of(context).textTheme.titleMedium,
+          const SectionHeader('Lettura intelligente'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.l),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const TextSpan(
+                    text:
+                        'Un modello AI sul telefono legge il testo del coupon e '
+                        'compila i campi che le regole non riconoscono '
+                        '(negozio, scadenza, sconto). I campi suggeriti hanno '
+                        "l'icona ",
+                  ),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Icon(
+                      Icons.auto_awesome,
+                      size: 18,
+                      semanticLabel: 'stelline',
+                    ),
+                  ),
+                  const TextSpan(
+                    text:
+                        " e la scritta «Suggerito dall'AI»: controllali "
+                        'prima di salvare.',
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            "Un modello AI sul telefono legge il testo del coupon e compila i "
-            "campi che le regole non riconoscono (negozio, scadenza, sconto). "
-            "I campi suggeriti sono segnati in blu: controllali prima di salvare.",
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Gap.s),
           SwitchListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(horizontal: Gap.l),
             title: const Text("Usa l'AI sul telefono"),
             value: enabled,
             onChanged: downloading
                 ? null
                 : (v) => ref.read(llmEnabledProvider.notifier).set(v),
           ),
-          const SizedBox(height: 8),
-          status.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('Stato non disponibile: $e'),
-            data: (s) => _StatusCard(
-              status: s,
-              progress: _progress,
-              error: _error,
-              onDownload: _download,
-              onCancel: () => ref.read(llmExtractorProvider).cancelDownload(),
-              onDelete: _delete,
+          const SizedBox(height: Gap.s),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.l),
+            child: status.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('Stato non disponibile: $e'),
+              data: (s) => _StatusCard(
+                status: s,
+                progress: _progress,
+                error: _error,
+                onDownload: _download,
+                onCancel: () => ref.read(llmExtractorProvider).cancelDownload(),
+                onDelete: _delete,
+              ),
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Privacy: il testo dei coupon non lascia mai il telefono. '
-            "L'unico traffico di rete è il download del modello, una volta sola.",
-            style: Theme.of(context).textTheme.bodySmall,
+          const SectionHeader('Privacy'),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: Gap.l),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ExcludeSemantics(child: Icon(Icons.lock_outline)),
+                SizedBox(width: Gap.m),
+                Expanded(
+                  child: Text(
+                    'Il testo dei coupon non lascia mai il telefono. '
+                    "L'unico traffico di rete è il download del modello, "
+                    'una volta sola.',
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -184,7 +221,7 @@ class _StatusCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Gap.l),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,

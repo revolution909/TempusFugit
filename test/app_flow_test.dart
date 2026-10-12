@@ -77,7 +77,11 @@ void main() {
   testWidgets('empty state invites to add the first coupon', (tester) async {
     await pumpApp(tester);
     expect(find.textContaining('Nessun coupon ancora'), findsOneWidget);
-    expect(find.text('Attivi (0)'), findsOneWidget);
+    // The empty state carries the action, so there is no floating button yet,
+    // and nothing to filter or search.
+    expect(find.text('Aggiungi il primo coupon'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byType(TextField), findsNothing);
     await unmount(tester);
   });
 
@@ -114,7 +118,7 @@ void main() {
   testWidgets('manual add saves a coupon and schedules reminders', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Aggiungi'));
+    await tester.tap(find.text('Aggiungi il primo coupon'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Inserisci a mano'));
     await tester.pumpAndSettle();
@@ -174,18 +178,26 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('delete asks for confirmation', (tester) async {
+  testWidgets('delete is immediate and can be undone', (tester) async {
     await insert(seed('1', 'Da cancellare', DateTime.now().add(const Duration(days: 10))));
     await pumpApp(tester);
     await tester.tap(find.text('Da cancellare'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Elimina'));
+
+    await tester.tap(find.byTooltip('Altre azioni'));
     await tester.pumpAndSettle();
-    expect(find.text('Eliminare il coupon?'), findsOneWidget);
     await tester.tap(find.text('Elimina'));
     await tester.pumpAndSettle();
+
+    // Back on the (now empty) list, with a way back.
     expect(find.text('Da cancellare'), findsNothing);
     expect(find.textContaining('Nessun coupon ancora'), findsOneWidget);
+    expect(find.text('Coupon eliminato'), findsOneWidget);
+
+    await tester.tap(find.text('Annulla'));
+    await tester.pumpAndSettle();
+    expect(find.text('Da cancellare'), findsOneWidget);
+    expect(find.textContaining('Nessun coupon ancora'), findsNothing);
     await unmount(tester);
   });
 }

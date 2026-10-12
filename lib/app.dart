@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/detail/coupon_detail_page.dart';
 import 'features/list/coupon_list_page.dart';
 import 'providers.dart';
+import 'ui/theme.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -57,12 +58,9 @@ class _TempusFugitAppState extends ConsumerState<TempusFugitApp>
       title: 'TempusFugit',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       locale: const Locale('it'),
       supportedLocales: const [Locale('it'), Locale('en')],
       localizationsDelegates: const [

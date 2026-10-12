@@ -9,12 +9,19 @@ App mobile (Flutter, iOS + Android) per tenere in un posto solo i **coupon fisic
   - foto del coupon o immagine dalla galleria: legge il codice, poi OCR del testo e regole (italiano/inglese) che estraggono negozio, sconto, spesa minima, date di validità e scadenza, codice promo, condizioni;
   - testo incollato dagli appunti (es. un codice promo ricevuto in chat);
   - inserimento manuale con negozio suggerito e scadenze rapide (+7 giorni, +30 giorni, fine mese, fine anno).
-  - Ogni strada termina in **una sola schermata di conferma**: i campi letti automaticamente con poca sicurezza sono evidenziati in arancione.
-- **Elenco** ordinato per scadenza, con colori d'urgenza (≤3 giorni rosso, ≤7 arancione) e schede Attivi / Scaduti / Usati.
+  - Ogni strada termina in **una sola schermata di conferma**: i campi letti automaticamente con poca sicurezza sono evidenziati (icona + testo, non solo colore).
+- **Elenco** raggruppato per urgenza (Scadono presto · Questa settimana · Questo mese · Più avanti · Senza scadenza), con ricerca per negozio o titolo e filtri Attivi / Scaduti / Usati. Scorri a destra per «Usato», a sinistra per «Elimina»: nessuna conferma, ma un **Annulla** di 6 secondi. Con TalkBack/VoiceOver le stesse azioni sono nel menu azioni della riga e nella pressione lunga.
 - **Promemoria locali**: 7 giorni prima, 1 giorno prima e la mattina della scadenza (ore 9). Toccando la notifica si apre il coupon.
 - **Vista "in cassa"**: codice ridisegnato a tutto schermo, luminosità al massimo, schermo sempre acceso.
 - "Associato a": negozio/marchio più un'etichetta libera (es. "regalo di Anna").
-- **Lettura intelligente (opzionale)**: un modello AI **sul telefono** compila in background i campi che le regole non riconoscono. Il form si apre subito con le regole; l'AI arriva dopo, scrive solo nei campi ancora vuoti e mai in quelli che hai già toccato, e li segna in blu ("Suggerito dall'AI: controlla"). Disattivata di default (Impostazioni).
+- **Lettura intelligente (opzionale)**: un modello AI **sul telefono** compila in background i campi che le regole non riconoscono. Il form si apre subito con le regole; l'AI arriva dopo, scrive solo nei campi ancora vuoti e mai in quelli che hai già toccato, e li segna con l'icona ✨ ("Suggerito dall'AI: controlla"). Disattivata di default (Impostazioni).
+
+## Interfaccia e accessibilità
+
+- **Material 3** con un colore di marca fisso (verde acqua, `ColorScheme.fromSeed`), tema chiaro e scuro automatici. L'urgenza usa sempre **colore + icona + testo** (mai solo il colore); le coppie di colori sono verificate WCAG AA (≥ 4,5:1) da `test/ui_contrast_test.dart`.
+- Componenti dell'SDK per quasi tutto; due sole librerie in più: [`flutter_slidable`](https://pub.dev/packages/flutter_slidable) (swipe sulle righe) e [`animations`](https://pub.dev/packages/animations) (transizione riga → dettaglio, ufficiale Flutter). Scartate di proposito: `dynamic_color` (colore fisso voluto), `google_fonts` (scarica da internet), `flutter_animate` (non più mantenuta), `skeletonizer` (i dati sono locali).
+- Il form protegge dalla perdita di dati (conferma se esci con modifiche), lo scanner legge solo dentro il riquadro e mostra lo stato della torcia, la vista in cassa resta bianca per i lettori.
+- `test/ui_accessibility_test.dart` applica le linee guida di Flutter (target ≥ 48 dp, etichette, contrasto) a ogni schermata in chiaro e scuro, e controlla che a testo ingrandito (×2) su 360×640 non ci siano overflow. Gli screenshot si generano con `SCREENSHOT_DIR=cartella flutter test test/screenshots/screens_test.dart`.
 
 ## Struttura
 
@@ -26,8 +33,10 @@ lib/
   llm/             prompt + parser validato, merge regole/AI, interfaccia LlmExtractor,
                    EdgeAiExtractor (unico file che usa flutter_edge_ai)
   notifications/   ReminderPlanner (logica pura) + NotificationService (plugin)
+  ui/              tema, token (spaziature, raggi, durate), colori d'urgenza, widget comuni
   features/        list, form (conferma/modifica), scan, detail (+ vista cassa), add, settings
-test/              estrattore, pianificatore, pipeline, repository, flussi UI, LLM (con LLM finto)
+test/              estrattore, pianificatore, pipeline, repository, flussi UI, LLM (con LLM finto),
+                   contrasto, accessibilità, screenshot
 ```
 
 Scelte da sapere:
@@ -62,6 +71,7 @@ Requisiti nativi:
 - Verifica reale dell'LLM su un telefono: qualità, tempi, memoria e batteria non sono stati misurati (vedi sotto).
 - Azioni "Usato" / "Posticipa" direttamente dalla notifica; orari e giorni dei promemoria configurabili.
 - Export / backup dei dati (oggi disinstallare l'app li cancella).
+- Verifica su un telefono vero di UI e accessibilità: gli screenshot e le linee guida automatiche girano nel simulatore di test, non su TalkBack/VoiceOver; resa del colore, ombre e fluidità delle animazioni vanno viste a mano. Mancano anche icona e splash screen dell'app.
 - Verifica su dispositivi reali: l'OCR su coupon veri (cartacei, stropicciati) va misurata prima di fidarsi delle regole.
 
 ### Da provare sul telefono (l'LLM non è stato eseguito in sviluppo)

@@ -63,8 +63,8 @@ void main() {
       ),
     );
     // Let the async enabled-flag / status lookups complete.
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
     }
   }
 
@@ -79,8 +79,8 @@ void main() {
       .text;
 
   Future<void> finish(WidgetTester tester) async {
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
     }
   }
 
@@ -111,7 +111,7 @@ void main() {
     expect(find.text("L'AI sta leggendo il testo…"), findsNothing);
     expect(text(tester, 'Negozio / marchio *'), 'Bella Napoli');
     expect(text(tester, 'Titolo'), '2x1 il martedì');
-    expect(text(tester, 'Spesa minima € (facoltativo)'), '30');
+    expect(text(tester, 'Spesa minima (facoltativo)'), '30');
     expect(text(tester, 'Condizioni (facoltativo)'), 'Escluso festivi.');
     expect(text(tester, 'Codice'), 'NAPOLI2X1');
     expect(find.textContaining('2031'), findsOneWidget);

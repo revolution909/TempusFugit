@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/coupon.dart';
 import '../../extraction/extraction_pipeline.dart';
 import '../../providers.dart';
+import '../../ui/tokens.dart';
 import '../form/coupon_form_page.dart';
 import '../scan/barcode_scan_page.dart';
 
@@ -25,42 +26,55 @@ Future<void> showAddCouponSheet(BuildContext context, WidgetRef ref) async {
     isScrollControlled: true,
     builder: (context) => SafeArea(
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Gap.l, 0, Gap.l, Gap.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _option(
-              context,
-              Icons.qr_code_scanner,
-              'Scansiona codice',
-              'Barcode o QR, lettura immediata',
-              _AddChoice.barcode,
+            Text(
+              'Aggiungi un coupon',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            _option(
-              context,
-              Icons.photo_camera,
-              'Fotografa il coupon',
-              'Legge codice, negozio, sconto e scadenza',
-              _AddChoice.photo,
+            const SizedBox(height: Gap.l),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _BigAction(
+                      icon: Icons.qr_code_scanner,
+                      label: 'Scansiona codice',
+                      onTap: () => Navigator.pop(context, _AddChoice.barcode),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.m),
+                  Expanded(
+                    child: _BigAction(
+                      icon: Icons.photo_camera_outlined,
+                      label: 'Fotografa',
+                      onTap: () => Navigator.pop(context, _AddChoice.photo),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: Gap.s),
             _option(
               context,
-              Icons.photo_library,
-              'Da galleria / screenshot',
-              'Importa un\'immagine già salvata',
+              Icons.photo_library_outlined,
+              'Da galleria o screenshot',
               _AddChoice.gallery,
             ),
             _option(
               context,
               Icons.content_paste,
-              'Incolla testo',
-              'Es. un codice promo copiato da email o chat',
+              'Incolla testo copiato',
               _AddChoice.clipboard,
             ),
             _option(
               context,
-              Icons.edit,
+              Icons.edit_outlined,
               'Inserisci a mano',
-              null,
               _AddChoice.manual,
             ),
           ],
@@ -114,14 +128,65 @@ Widget _option(
   BuildContext context,
   IconData icon,
   String title,
-  String? subtitle,
   _AddChoice value,
 ) => ListTile(
+  contentPadding: EdgeInsets.zero,
+  minVerticalPadding: Gap.s,
   leading: Icon(icon),
   title: Text(title),
-  subtitle: subtitle == null ? null : Text(subtitle),
   onTap: () => Navigator.of(context).pop(value),
 );
+
+/// One of the two primary ways to add a coupon: a large tonal tile with the
+/// icon above its label.
+class _BigAction extends StatelessWidget {
+  const _BigAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(Corner.large),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.m,
+              vertical: Gap.l,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 32, color: scheme.onSecondaryContainer),
+                const SizedBox(height: Gap.s),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelLarge
+                      ?.copyWith(color: scheme.onSecondaryContainer),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 Future<void> _fromImage(
   BuildContext context,
@@ -138,7 +203,18 @@ Future<void> _fromImage(
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const Center(child: CircularProgressIndicator()),
+    builder: (_) => const PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: Gap.xl),
+            Expanded(child: Text('Sto leggendo il coupon…')),
+          ],
+        ),
+      ),
+    ),
   );
   ScanResult result;
   String savedPath;
