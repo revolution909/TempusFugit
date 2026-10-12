@@ -65,6 +65,25 @@ Requisiti nativi:
 - **iOS 15.5** (ML Kit) con pod collegati staticamente (`ios/Podfile`).
 - Su iOS le notifiche e la fotocamera chiedono il permesso al primo uso.
 
+## Provare l'app sul telefono (APK di prova)
+
+Ogni push esegue la CI (`.github/workflows/ci.yml`): analyze, test e build di un **APK debug arm64**.
+
+1. Su GitHub: **Actions** → ultimo run verde → sezione *Artifacts* → `tempusfugit-debug-arm64` (zip, conservato 14 giorni). Serve essere loggati in GitHub.
+2. Decomprimi, copia `app-debug.apk` sul telefono e aprilo (Android chiede di consentire l'installazione da quella app). È firmato con la chiave di debug: va bene per provare, non per pubblicare.
+3. L'APK debug è più lento e più grande di una release: i tempi dell'AI e dell'OCR possono essere migliori in una build `--release`.
+
+Checklist di prova (segna cosa non va, anche i dettagli):
+
+- [ ] **Permessi**: fotocamera al primo scan; notifiche (Android 13+ le chiede).
+- [ ] **Scansione**: barcode e QR veri, con poca luce e con la torcia; codice letto fuori dal riquadro ignorato.
+- [ ] **Foto/OCR**: ~30 coupon veri (cartacei stropicciati, schermate di app, email). Quanti campi sono giusti senza correzioni?
+- [ ] **AI** (Impostazioni → attiva → scarica modello, meglio col Wi-Fi): stesso insieme di coupon, regole sole contro regole+AI; tempo per coupon, calore/batteria, modello ancora attivo dopo il riavvio, nessun dato inventato.
+- [ ] **Promemoria**: crea un coupon che scade domani e uno tra 7 giorni; arrivano alle 9:00? Toccando la notifica si apre il coupon?
+- [ ] **Elenco**: swipe «Usato» / «Elimina» + Annulla, ricerca, filtri.
+- [ ] **Vista in cassa**: il lettore della cassa legge il codice ridisegnato (luminosità al massimo).
+- [ ] **Accessibilità**: TalkBack acceso (le azioni delle righe sono nel menu azioni), testo di sistema al massimo, tema scuro.
+
 ## Non ancora fatto
 
 - Condivisione da altre app (share sheet), import PDF e `.pkpass`.
