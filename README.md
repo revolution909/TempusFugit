@@ -36,13 +36,21 @@ Scelte da sapere:
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # solo se cambi lib/data/database.dart
+dart run build_runner build --delete-conflicting-outputs   # genera lib/data/database.g.dart
 flutter analyze
 flutter test
 flutter run
 ```
 
 Requisiti nativi: Android minSdk dal template Flutter; iOS 15.5 (richiesto da ML Kit). Su iOS le notifiche e la fotocamera chiedono il permesso al primo uso.
+
+### File non inclusi in questo branch
+
+Questo branch è stato pubblicato senza poter caricare file binari o molto grandi. Mancano, e vanno ricreati prima della prima build:
+
+- `lib/data/database.g.dart`: codice generato, si ricrea con il comando `build_runner` qui sopra.
+- `pubspec.lock`: lo crea `flutter pub get` (le versioni risolte possono differire da quelle con cui ho provato l'app).
+- Le icone: i PNG in `android/app/src/main/res/mipmap-*/` e in `ios/Runner/Assets.xcassets/AppIcon.appiconset` e `LaunchImage.imageset`. Copiali da un progetto vuoto creato con `flutter create` oppure usa le tue.
 
 ## Non ancora fatto
 
