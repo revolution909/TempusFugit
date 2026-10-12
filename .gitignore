@@ -218,3 +218,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Flutter / Dart
+# The Python template above ignores any lib/ directory; this is the app source.
+!/lib/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+.idea/
+/android/local.properties
+/android/.gradle/
+/ios/Pods/
+/ios/Flutter/Generated.xcconfig
