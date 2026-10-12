@@ -15,6 +15,7 @@ class ExtractedCoupon {
     this.codeValue,
     this.conditions,
     this.uncertain = const {},
+    this.aiFilled = const {},
   });
 
   final String? merchant;
@@ -28,7 +29,14 @@ class ExtractedCoupon {
   /// A printed promo code (not a barcode).
   final String? codeValue;
   final String? conditions;
+
+  /// Fields guessed with low confidence (by the rules or by the LLM).
   final Set<String> uncertain;
+
+  /// Fields whose value came from the on-device LLM rather than the rules, so
+  /// the UI can say so: `merchant`, `title`, `expiresAt`, `validFrom`,
+  /// `discount`, `minSpend`, `codeValue`, `conditions`.
+  final Set<String> aiFilled;
 
   /// Whether any usable field was found.
   bool get isEmpty =>

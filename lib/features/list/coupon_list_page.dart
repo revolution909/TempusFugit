@@ -6,6 +6,7 @@ import '../../providers.dart';
 import '../add/add_coupon_flow.dart';
 import '../common/expiry.dart';
 import '../detail/coupon_detail_page.dart';
+import '../settings/settings_page.dart';
 
 enum _Filter { active, expired, used }
 
@@ -35,7 +36,17 @@ class _CouponListPageState extends ConsumerState<CouponListPage> {
     final coupons = ref.watch(couponsProvider);
     final now = DateTime.now();
     return Scaffold(
-      appBar: AppBar(title: const Text('I miei coupon')),
+      appBar: AppBar(
+        title: const Text('I miei coupon'),
+        actions: [
+          IconButton(
+            tooltip: 'Impostazioni',
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsPage())),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showAddCouponSheet(context, ref),
         icon: const Icon(Icons.add),

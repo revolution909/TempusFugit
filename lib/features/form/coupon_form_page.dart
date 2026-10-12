@@ -5,12 +5,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/coupon.dart';
 import '../../extraction/rule_extractor.dart';
+import '../../llm/llm_extractor.dart';
+import '../../llm/llm_merge.dart';
+import '../../llm/llm_settings.dart';
 import '../../providers.dart';
 
 /// Pre-filled values for a new coupon coming from a scan, photo or pasted text.
 class CouponDraft {
   const CouponDraft({
     this.extracted,
+    this.rawText,
     this.codeValue,
     this.codeFormat,
     this.imagePath,
@@ -19,6 +23,9 @@ class CouponDraft {
   });
 
   final ExtractedCoupon? extracted;
+
+  /// The text the fields were read from (OCR or pasted); input for the LLM.
+  final String? rawText;
   final String? codeValue;
   final String? codeFormat;
   final String? imagePath;
@@ -58,6 +65,13 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
   String? _originalCode;
   String? _extractedMerchant;
 
+  // On-device LLM: it fills fields in the background, but never one the user
+  // has already touched.
+  final _touched = <String>{};
+  final _aiFilled = <String>{};
+  bool _aiRunning = false;
+  bool _applyingAi = false;
+
   static final _dateFormat = DateFormat('EEE d MMM y', 'it');
 
   @override
@@ -90,8 +104,92 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
       }
     });
 
+    void track(TextEditingController c, String field) => c.addListener(() {
+          if (!_applyingAi) _touched.add(field);
+        });
+    track(_title, 'title');
+    track(_merchant, 'merchant');
+    track(_code, 'codeValue');
+    track(_discountValue, 'discount');
+    track(_minSpend, 'minSpend');
+    track(_conditions, 'conditions');
+
     ref.read(couponRepositoryProvider).merchants().then((m) {
       if (mounted) setState(() => _knownMerchants = m);
+    });
+    _maybeRunLlm();
+  }
+
+  /// Starts the on-device LLM when it is enabled and ready and the rules left
+  /// gaps. The form is already usable; the result arrives later.
+  Future<void> _maybeRunLlm() async {
+    final draft = widget.draft;
+    final text = draft?.rawText;
+    if (widget.existing != null || draft == null || text == null) return;
+    final rules = draft.extracted ?? const ExtractedCoupon();
+    if (!rulesLeftGaps(rules, text)) return;
+
+    try {
+      final enabled = await ref.read(llmEnabledProvider.future);
+      if (!enabled || !mounted) return;
+      final extractor = ref.read(llmExtractorProvider);
+      if (await extractor.status() is! LlmReady || !mounted) return;
+
+      setState(() => _aiRunning = true);
+      final llm = await extractor.extract(text, now: DateTime.now());
+      if (!mounted) return;
+      setState(() => _aiRunning = false);
+      if (llm != null) _applyAi(mergeExtraction(rules, llm));
+    } catch (_) {
+      if (mounted) setState(() => _aiRunning = false);
+    }
+  }
+
+  void _applyAi(ExtractedCoupon m) {
+    bool free(String field) => m.aiFilled.contains(field) && !_touched.contains(field);
+    setState(() {
+      _applyingAi = true;
+      try {
+        if (free('merchant') && m.merchant != null) {
+          _merchant.text = m.merchant!;
+          _uncertain.remove('merchant');
+          _aiFilled.add('merchant');
+        }
+        if (free('title') && m.title != null && _title.text.isEmpty) {
+          _title.text = m.title!;
+          _aiFilled.add('title');
+        }
+        if (free('expiresAt') && m.expiresAt != null) {
+          _expiresAt = m.expiresAt;
+          _uncertain.remove('expiresAt');
+          if (m.uncertain.contains('expiresAt')) _uncertain.add('expiresAt');
+          _aiFilled.add('expiresAt');
+        }
+        if (free('validFrom') && m.validFrom != null) {
+          _validFrom = m.validFrom;
+          _aiFilled.add('validFrom');
+        }
+        if (free('discount') && m.discountType != null) {
+          _discountType = m.discountType!;
+          _discountValue.text = _fmtNum(m.discountValue);
+          _aiFilled.add('discount');
+        }
+        if (free('minSpend') && m.minSpend != null) {
+          _minSpend.text = _fmtNum(m.minSpend);
+          _aiFilled.add('minSpend');
+        }
+        // A scanned barcode is never replaced by a code the model read.
+        if (free('codeValue') && m.codeValue != null && _code.text.isEmpty) {
+          _code.text = m.codeValue!;
+          _aiFilled.add('codeValue');
+        }
+        if (free('conditions') && m.conditions != null && _conditions.text.isEmpty) {
+          _conditions.text = m.conditions!;
+          _aiFilled.add('conditions');
+        }
+      } finally {
+        _applyingAi = false;
+      }
     });
   }
 
@@ -114,16 +212,22 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
       double.tryParse(s.trim().replaceAll(',', '.'));
 
   InputDecoration _decoration(String label, {String? field, String? hint, Widget? suffix}) {
-    final unsure = field != null && _uncertain.contains(field);
+    final byAi = field != null && _aiFilled.contains(field);
+    final unsure = !byAi && field != null && _uncertain.contains(field);
+    final color = byAi ? Colors.blue.shade700 : Colors.orange.shade800;
     return InputDecoration(
       labelText: label,
       hintText: hint,
       suffixIcon: suffix,
       border: const OutlineInputBorder(),
-      helperText: unsure ? 'Letto automaticamente: controlla' : null,
-      helperStyle: TextStyle(color: Colors.orange.shade800),
-      enabledBorder: unsure
-          ? OutlineInputBorder(borderSide: BorderSide(color: Colors.orange.shade700, width: 2))
+      helperText: byAi
+          ? "Suggerito dall'AI: controlla"
+          : unsure
+              ? 'Letto automaticamente: controlla'
+              : null,
+      helperStyle: TextStyle(color: color),
+      enabledBorder: byAi || unsure
+          ? OutlineInputBorder(borderSide: BorderSide(color: color, width: 2))
           : null,
     );
   }
@@ -139,6 +243,8 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
     );
     if (picked == null) return;
     setState(() {
+      _touched.add(from ? 'validFrom' : 'expiresAt');
+      _aiFilled.remove(from ? 'validFrom' : 'expiresAt');
       if (from) {
         _validFrom = picked;
       } else {
@@ -149,6 +255,8 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
   }
 
   void _setExpiry(DateTime? d) => setState(() {
+        _touched.add('expiresAt');
+        _aiFilled.remove('expiresAt');
         _expiresAt = d;
         _uncertain.remove('expiresAt');
       });
@@ -200,6 +308,13 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_aiRunning) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 4),
+              Text("L'AI sta leggendo il testo…",
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 12),
+            ],
             SegmentedButton<CouponKind>(
               segments: const [
                 ButtonSegment(
@@ -257,7 +372,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _title,
-              decoration: _decoration('Titolo', hint: 'es. Sconto 20% su tutto'),
+              decoration: _decoration('Titolo', field: 'title', hint: 'es. Sconto 20% su tutto'),
               validator: (v) {
                 if ((v == null || v.trim().isEmpty) && _merchant.text.trim().isEmpty) {
                   return 'Inserisci un titolo';
@@ -273,7 +388,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
                   flex: 3,
                   child: DropdownButtonFormField<DiscountType>(
                     initialValue: _discountType,
-                    decoration: _decoration('Sconto'),
+                    decoration: _decoration('Sconto', field: 'discount'),
                     items: const [
                       DropdownMenuItem(value: DiscountType.percent, child: Text('Percentuale %')),
                       DropdownMenuItem(value: DiscountType.amount, child: Text('Importo €')),
@@ -281,7 +396,11 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
                       DropdownMenuItem(value: DiscountType.freebie, child: Text('Omaggio')),
                       DropdownMenuItem(value: DiscountType.other, child: Text('Altro')),
                     ],
-                    onChanged: (v) => setState(() => _discountType = v!),
+                    onChanged: (v) => setState(() {
+                      _touched.add('discount');
+                      _aiFilled.remove('discount');
+                      _discountType = v!;
+                    }),
                   ),
                 ),
                 if (_discountType == DiscountType.percent ||
@@ -293,7 +412,8 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
                       controller: _discountValue,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: _decoration(
-                          _discountType == DiscountType.percent ? 'Valore %' : 'Valore €'),
+                          _discountType == DiscountType.percent ? 'Valore %' : 'Valore €',
+                          field: 'discount'),
                       validator: (v) => v != null && v.trim().isNotEmpty && _parseNum(v) == null
                           ? 'Numero non valido'
                           : null,
@@ -341,6 +461,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
               onTap: () => _pickDate(from: true),
               child: InputDecorator(
                 decoration: _decoration('Valido dal (facoltativo)',
+                    field: 'validFrom',
                     suffix: _validFrom == null
                         ? const Icon(Icons.calendar_today)
                         : IconButton(
@@ -353,6 +474,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
             TextFormField(
               controller: _code,
               decoration: _decoration('Codice',
+                  field: 'codeValue',
                   hint: 'numero del codice a barre o codice promo',
                   suffix: _codeFormat == null
                       ? null
@@ -371,7 +493,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
             TextFormField(
               controller: _minSpend,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: _decoration('Spesa minima € (facoltativo)'),
+              decoration: _decoration('Spesa minima € (facoltativo)', field: 'minSpend'),
               validator: (v) => v != null && v.trim().isNotEmpty && _parseNum(v) == null
                   ? 'Numero non valido'
                   : null,
@@ -380,7 +502,7 @@ class _CouponFormPageState extends ConsumerState<CouponFormPage> {
             TextFormField(
               controller: _conditions,
               maxLines: 3,
-              decoration: _decoration('Condizioni (facoltativo)'),
+              decoration: _decoration('Condizioni (facoltativo)', field: 'conditions'),
             ),
             const SizedBox(height: 12),
             TextFormField(

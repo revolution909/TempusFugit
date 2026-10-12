@@ -170,6 +170,7 @@ CouponDraft _draftFrom(
   String? imagePath,
 ) => CouponDraft(
   extracted: r.extracted,
+  rawText: r.rawText,
   codeValue: r.codeValue,
   codeFormat: r.codeFormat,
   imagePath: imagePath,
